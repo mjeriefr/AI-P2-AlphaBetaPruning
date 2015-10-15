@@ -16,9 +16,18 @@ def heuristic(board):
     print("not implemented")
     assert(0)
 
-def getSuccessors(board, move):
-    print("not implemented")
-    assert(0)
+# Makes one move. (expands all children to depth + 1
+# Inputs: whole board state
+#         number index of mini board
+#         character 'X' or 'O' representing whos turn it is in the round
+def getSuccessors(board, whichMiniBoard, whosTurn):
+    miniBoard = board[whichMiniBoard]
+    for space in range(0, 9):
+        if (miniBoard[space] == ' '):
+            newBoard = copy.deepcopy(board)
+            newBoard[whichMiniBoard][space] = whosTurn
+            successors.append((newBoard, space)) #space becomes new miniBoard index
+    return successors
 
 def simulateMove(board, whichMiniGame, whosTurn, depth, alpha, beta):
     print("not implemented")
