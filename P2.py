@@ -65,6 +65,22 @@ def oppositeChar(XorO):
     else:
         return 'X'
 
+def getMiniBoardHeuristic(miniBoard):
+    heuristic = 0
+
+    #opposite corners
+    if(miniBoard[0] == miniBoard[8] and miniBoard[0] == computersChar):
+        heuristic += 2
+    if(miniBoard[0] == miniBoard[8] and miniBoard[0] == humansChar):
+        heuristic -= 2
+    if(miniBoard[2] == miniBoard[6] and miniBoard[2] == computersChar):
+        heuristic += 2
+    if(miniBoard[2] == miniBoard[6] and miniBoard[2] == humansChar):
+        heuristic -= 2
+
+    #TODO
+    return heuristic
+
 def getHeuristic(board, debuggingOutput):
     winner = getWinner(board)
     if(debuggingOutput):
@@ -81,10 +97,12 @@ def getHeuristic(board, debuggingOutput):
             if(debuggingOutput):
                 print("The computer has won board", i)
             heuristic += 100
-        if( humansChar == miniBoardWinLose):
+        elif ( humansChar == miniBoardWinLose):
             if(debuggingOutput):
                 print("The human has won board", i)
             heuristic -= 100
+        else:
+            heuristic += getMiniBoardHeuristic(board[i])
     #keep it simple for now. later we can do fancy things like check the number of forced wins/losses
     return heuristic
 
@@ -123,6 +141,7 @@ def simulateRound(board, whichMiniGame, depth, computersTurn):
         possibleComputerMoves = getSuccessors(board, whichMiniGame, computersChar)
         for successorComputer in successorComputer :
             (newBoard, computerMove) = successorComputer
+            printWholeBoard(newBoard)
             nextLevelVal = simulateRound(newBoard, computerMove, (depth-1), (not computersTurn))
             hightestComputerMove = max(highestComputerMove, nextLevelVal)
         return hightestComputerMove
@@ -148,16 +167,30 @@ def simulateRound(board, whichMiniGame, depth, computersTurn):
 ##    return (maximin, bestMove)
 
 def nextComputerMove(board, whichMiniGame, depth):
-    bestNextMoves = queue.Queue()
+    nextMoves = queue.Queue()
     successors = getSuccessors(board, whichMiniGame, computersChar)
     for successor in successors :
         (newBoard, move) = successor
         minimax = simulateRound(newBoard, move, (depth-1), False)
-        bestNextMoves.put(minimax, move)
+        nextMoves.put((minimax, copy.deepcopy(newBoard), copy.deepcopy(move)))
         print("Added move", move, "with minimax", minimax)
+    #print("next moves are:", nextMoves.queue)
+
+    #if weights are equal, run the heuristic again
+    bestNextMoves = queue.Queue()
+    while(True):
+        (firstWeight, firstBoard, firstMove) = nextMoves.get()
+        (secondWeight, secondBoard, secondMove) = nextMoves.get() #second on the list, first after pop
+        nextMoves.put((secondWeight, secondBoard, secondMove)) #reattach it, we want it again
+        print("secondWeight is", secondWeight, "secondMove is", secondMove)
+        if(firstWeight < secondWeight or secondMove == None or nextMoves.qsize() <= 1): #done, they differ. pick the better one
+            bestNextMoves.put(firstWeight, firstBoard, firstMove)
+            break
+        heuristic = getHeuristic(firstBoard, False)
+        bestNextMoves.put((heuristic, firstBoard, firstMove))
+        
     return bestNextMoves.get()
         
-
 def miniBoardFull(miniBoard):
     for i in range(0, 9):
         if( miniBoard[i] == ' '):
@@ -236,11 +269,14 @@ def playGame():
 
         #computers turn
         #(minimax, computersMove) = simulateMove(board, nextMiniBoard, computersChar, True, maxDepth, -99999, 99999)
-        computersMove = nextComputerMove(board, nextMiniBoard, 2)
-        print("Computer chose", computersMove)
+        computersChoice = nextComputerMove(board, nextMiniBoard, 2)
+        (minimaxVal, newBoardAfterComputersMove, computersMove) = computersChoice
+        print("minimax value is", minimaxVal)
         #do error checking
         printMiniBoard(board[nextMiniBoard])
         if( computersMove < 0 or computersMove > 8 or (not (board[nextMiniBoard][computersMove] == ' '))):
+            printMiniBoard(board[nextMiniBoard])
+            print("^^ O to space", computersMove)
             print("ERROR! Computer tried to make an illegal move")
             assert(0)
         print("")
@@ -261,3 +297,4 @@ playGame()
 #print("mini board winner ", miniBoardWinner(['X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' ']))
 #print("mini board winner ", miniBoardWinner(['X', ' ', ' ', 'X', ' ', ' ', 'X', ' ', ' ']))
 #print("mini board winner ", miniBoardWinner(['0', 'X', 'X', 'X', 'X', 'X', 'X', 'X', ' ']))
+#getMiniBoardHeuristic(['0', 'X', 'X', 'X', 'X', 'X', 'X', 'X', '!'])
