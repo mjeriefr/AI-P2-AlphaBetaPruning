@@ -107,7 +107,7 @@ def getMiniBoardHeuristic(miniBoard):
         heuristic = 900
     return heuristic
 
-def getHeuristic(board):
+def getHeuristic(board, overallBoardWinner):
 ##    #Note: this block of code could slow things down more than it speeds things up
 ##    winner = getWinner(board)
 ##    if( winner == 'O' ):
@@ -115,22 +115,28 @@ def getHeuristic(board):
 ##    if( winner == 'X' ):
 ##        return -99999
 
-    overallBoardWinLose = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+    newOverallBoardWinners = copy.deepcopy(overallBoardWinner)
         
     heuristic = 0
     for i in range(0, 9) :
         #How many mini boards are won/lost?
-        #if(overallBoardWinners[i] == ' ') #TODO - This overallBoardWinners isn't written
-        overallBoardWinLose[i] = miniBoardWinner(board[i])
-        if( 'O' == overallBoardWinLose[i]):
+        if(newOverallBoardWinners[i] == ' '):
+            newOverallBoardWinners[i] = miniBoardWinner(board[i])
+        if( 'O' == newOverallBoardWinners[i]):
             heuristic += 1000
-        elif( 'X' == overallBoardWinLose[i]):
+        elif( 'X' == newOverallBoardWinners[i]):
             heuristic -= 1000
         #Are we about to win on any mini boards?
         else:
             heuristic += getMiniBoardHeuristic(board[i])
 
-    overallBoardHeuristic = getMiniBoardHeuristic(overallBoardWinLose)
+    if(miniBoardWinner(newOverallBoardWinners) != ' '):
+        if(miniBoardWinner(newOverallBoardWinners) == 'X'):
+           return -99999
+        else:
+           return 99999
+
+    overallBoardHeuristic = getMiniBoardHeuristic(newOverallBoardWinners)
     heuristic += overallBoardHeuristic * 3
     return heuristic
 
@@ -158,7 +164,7 @@ def simulateMove(previousBoard, whichMiniGame, computersTurn, overallBoardWinner
         #printWholeBoard(previousBoard)
         #print("Reached max depth")
         #print("")
-        return (getHeuristic(previousBoard), -1)
+        return (getHeuristic(previousBoard, overallBoardWinners), -1)
 
     successors = getSuccessors(previousBoard, whichMiniGame, computersTurn)
     maximin = -99999
