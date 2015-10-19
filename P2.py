@@ -140,11 +140,35 @@ def getHeuristic(board, overallBoardWinner):
     heuristic += overallBoardHeuristic * 3
     return heuristic
 
+#which board do we play on next? is there a draw anywhere?
+def getNextBoardDuringFullOrDraw(whichMiniBoard, overallBoardWinners):
+    if(overallBoardWinners[whichMiniBoard] != ' '):
+        for i in range(0, 9):
+            if(overallBoardWinners[i] == ' '):
+                return i
+        return '-' #game over
+    return whichMiniBoard
+
+#GUI for getNextBoardDuringFullOrDraw
+def getNextBoardDuringFullOrDrawWithPrint(whichMiniBoard, overallBoardWinners):
+    newMiniBoard = getNextBoardDuringFullOrDraw(whichMiniBoard, overallBoardWinners)
+    if(newMiniBoard == '-'):
+        print("All boards are full. No one won, it was a Draw. :/")
+    if(whichMiniBoard != newMiniBoard):
+        print("Board", whichMiniBoard, "is full. Finding a suitable board")
+        print("We will play on board", newMiniBoard, "since it is not full")
+    return newMiniBoard
+
 # Makes one move. (expands all children to depth - 1
 # Inputs: whole board state
 #         number index of mini board
 #         character 'X' or 'O' representing whos turn it is in the round
-def getSuccessors(board, whichMiniBoard, computersTurn):
+def getSuccessors(board, whichMiniBoard, computersTurn, overallBoardWinners):
+    #If the board is already full or won, go to another board
+    if(overallBoardWinners[whichMiniBoard] != ' '):
+        nextBoard = getNextBoardDuringFullOrDraw(whichMiniBoard, overallBoardWinners)
+        return getSuccessors(board, nextBoard, computersTurn, overallBoardWinners)
+    
     playerChar = ' '
     if (computersTurn):
         playerChar = 'O'
@@ -166,7 +190,7 @@ def simulateMove(previousBoard, whichMiniGame, computersTurn, overallBoardWinner
         #print("")
         return (getHeuristic(previousBoard, overallBoardWinners), -1)
 
-    successors = getSuccessors(previousBoard, whichMiniGame, computersTurn)
+    successors = getSuccessors(previousBoard, whichMiniGame, computersTurn, overallBoardWinners)
     maximin = -99999
     bestMove = -1
     for successor in successors :
@@ -184,24 +208,24 @@ def simulateMove(previousBoard, whichMiniGame, computersTurn, overallBoardWinner
             bestMove = moveIndex
     return (maximin, bestMove)
 
-def miniBoardFull(miniBoard):
-    for i in range(0, 9):
-        if( miniBoard[i] == ' '):
-            return False
-    return True
+##def miniBoardFull(miniBoard):
+##    for i in range(0, 9):
+##        if( miniBoard[i] == ' '):
+##            return False
+##    return True
 
-def nextMiniBoardToPlayOn(board, move):
-    #which board do we play on next? is there a draw anywhere?
-    targetBoardFull = miniBoardFull(board[move])
-    if(not targetBoardFull):
-        return move
-    print("Board", move, "is full. Finding a suitable board")
-    for i in range(0, 9):
-        if( not miniBoardFull(board[i])):
-            print("We will play on board", i, "since it is not full")
-            return i
-    print("All boards are full. No one won, it was a Draw. :/")
-    return -1
+##def nextMiniBoardToPlayOn(board, move, overallBoardWinners):
+##    #which board do we play on next? is there a draw anywhere?
+##    getNextBoardDuringFullOrDraw #CALL THIS METHOD!!!
+##    if(not targetBoardFull):
+##        return move
+##    print("Board", move, "is full. Finding a suitable board")
+##    for i in range(0, 9):
+##        if( not miniBoardFull(board[i])):
+##            print("We will play on board", i, "since it is not full")
+##            return i
+##    print("All boards are full. No one won, it was a Draw. :/")
+##    return -1
 ##    print("miniBoardWinner(board[move]) =", miniBoardWinner(board[move]), ".")
 ##    if( miniBoardWinner(board[move]) != ' '):
 ##        print("Draw!")
@@ -250,7 +274,7 @@ def playGames():
             if(miniBoardWinner(overallBoardWinners) != ' '):
                 print("The winner is", miniBoardWinner(overallBoardWinners), "!!!")
                 return miniBoardWinner(overallBoardWinners) #someone won the game
-        nextMiniBoard = nextMiniBoardToPlayOn(board, humansMove)
+        nextMiniBoard = getNextBoardDuringFullOrDrawWithPrint(humansMove, overallBoardWinners)
         if (nextMiniBoard == -1):
             return #draw
 
@@ -269,7 +293,7 @@ def playGames():
             if(miniBoardWinner(overallBoardWinners) != ' '):
                 print("The winner is", miniBoardWinner(overallBoardWinners), "!!!")
                 return miniBoardWinner(overallBoardWinners) #someone won the game
-        nextMiniBoard = nextMiniBoardToPlayOn(board, computersMove)
+        nextMiniBoard = getNextBoardDuringFullOrDrawWithPrint(computersMove, overallBoardWinners)
         if (nextMiniBoard == -1):
             return #draw
 
