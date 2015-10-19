@@ -44,16 +44,16 @@ def miniBoardWinner(miniBoard):
     #print("Board is tied")
     return '-'
 
-#Find a winner for the entire board
-#Simplify the large board down into a regular sized board
-def getWinner(board):
-    bigMiniBoard = [' ' for i in range(0, 9)]
-    for miniBoardIndex in range(0, 9) :
-        bigMiniBoard[miniBoardIndex] = miniBoardWinner(board[miniBoardIndex])
-    #print("The overall winners are:")
-    #printMiniBoard(bigMiniBoard)
-    overallWinner = miniBoardWinner(bigMiniBoard)
-    return overallWinner
+###Find a winner for the entire board
+###Simplify the large board down into a regular sized board
+##def getWinner(board):
+##    bigMiniBoard = [' ' for i in range(0, 9)]
+##    for miniBoardIndex in range(0, 9) :
+##        bigMiniBoard[miniBoardIndex] = miniBoardWinner(board[miniBoardIndex])
+##    #print("The overall winners are:")
+##    #printMiniBoard(bigMiniBoard)
+##    overallWinner = miniBoardWinner(bigMiniBoard)
+##    return overallWinner
 
 def oppositeChar(XorO):
     if(XorO == 'X'):
@@ -61,66 +61,119 @@ def oppositeChar(XorO):
     else:
         return 'X'
 
-def getHeuristic(board, XorO, computersTurn):
-    computersChar = XorO
-    humansChar = oppositeChar(XorO)
-    if( not computersTurn): #humans turn
-        computersChar = oppositeChar(XorO)
-        humansChar = XorO
+def findTwoOfThree(first, second, third):
+    nWins = 0
+    if(first == second and third == ' '):
+        if(first == 'O'):
+            nWins += 1
+        elif(first == 'X'):
+            nWins -= 1
+    elif(first == third and second == ' '):
+        if(first == 'O'):
+            nWins += 1
+        elif(first == 'X'):
+            nWins -= 1
+    elif(second == third and first == ' '):
+        if(second == 'O'):
+            nWins += 1
+        elif(second == 'X'):
+            nWins -= 1
+    return nWins
 
-    #Note: this block of code could slow things down more than it speeds things up
-    winner = getWinner(board)
-    if( winner == computersChar ):
-        return 99999
-    if( winner == humansChar ):
-        return -99999
+def getMiniBoardHeuristic(miniBoard):
+    nWins = 0
+    #rows
+    nWins += findTwoOfThree(miniBoard[0], miniBoard[1], miniBoard[2])
+    nWins += findTwoOfThree(miniBoard[3], miniBoard[4], miniBoard[5])
+    nWins += findTwoOfThree(miniBoard[6], miniBoard[7], miniBoard[8])
+    #columns
+    nWins += findTwoOfThree(miniBoard[0], miniBoard[3], miniBoard[6])
+    nWins += findTwoOfThree(miniBoard[1], miniBoard[4], miniBoard[7])
+    nWins += findTwoOfThree(miniBoard[2], miniBoard[5], miniBoard[8])
+    #diagonals
+    nWins += findTwoOfThree(miniBoard[0], miniBoard[4], miniBoard[8])
+    nWins += findTwoOfThree(miniBoard[6], miniBoard[4], miniBoard[2])
+    #count number of wins and make it exponential
+    heuristic = 0
+    if(nWins <= -2):
+        heuristic = -900
+    elif(nWins == -1):
+        heuristic = -100
+    elif(nWins == 0):
+        heuristic = 0
+    elif(nWins == 1):
+        heuristic = 100
+    elif(nWins >= 2):
+        heuristic = 900
+    return heuristic
+
+def getHeuristic(board):
+##    #Note: this block of code could slow things down more than it speeds things up
+##    winner = getWinner(board)
+##    if( winner == 'O' ):
+##        return 99999
+##    if( winner == 'X' ):
+##        return -99999
+
+    overallBoardWinLose = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
         
     heuristic = 0
-    for miniBoard in board :
-        miniBoardWinLose = miniBoardWinner(miniBoard)
-        if( computersChar == miniBoardWinLose):
-            heuristic += 100
-        if( humansChar == miniBoardWinLose):
-            heuristic -= 100
-    #keep it simple for now. later we can do fancy things like check the number of forced wins/losses
+    for i in range(0, 9) :
+        #How many mini boards are won/lost?
+        #if(overallBoardWinners[i] == ' ') #TODO - This overallBoardWinners isn't written
+        overallBoardWinLose[i] = miniBoardWinner(board[i])
+        if( 'O' == overallBoardWinLose[i]):
+            heuristic += 1000
+        elif( 'X' == overallBoardWinLose[i]):
+            heuristic -= 1000
+        #Are we about to win on any mini boards?
+        else:
+            heuristic += getMiniBoardHeuristic(board[i])
+
+    overallBoardHeuristic = getMiniBoardHeuristic(overallBoardWinLose)
+    heuristic += overallBoardHeuristic * 3
     return heuristic
 
 # Makes one move. (expands all children to depth - 1
 # Inputs: whole board state
 #         number index of mini board
 #         character 'X' or 'O' representing whos turn it is in the round
-def getSuccessors(board, whichMiniBoard, whosTurn):
+def getSuccessors(board, whichMiniBoard, computersTurn):
+    playerChar = ' '
+    if (computersTurn):
+        playerChar = 'O'
+    else:
+        playerChar = 'X'
     successors = []
     for space in range(0, 9):
         if (board[whichMiniBoard][space] == ' '):
             newBoard = copy.deepcopy(board)
-            newBoard[whichMiniBoard][space] = whosTurn
+            newBoard[whichMiniBoard][space] = playerChar
             successors.append((newBoard, space)) #space becomes new miniBoard index
     return successors
 
-def simulateMove(previousBoard, whichMiniGame, oldXorO, computersTurn, depth, alpha, beta):
+def simulateMove(previousBoard, whichMiniGame, computersTurn, overallBoardWinners, depth, alpha, beta):
     #base case. Using depth-limited search. 0 is deepest.
     if (depth <= 0 ):
         #printWholeBoard(previousBoard)
         #print("Reached max depth")
         #print("")
-        return (getHeuristic(previousBoard, oldXorO, computersTurn), -1)
+        return (getHeuristic(previousBoard), -1)
 
-    XorO = oppositeChar(oldXorO)
-    successors = getSuccessors(previousBoard, whichMiniGame, XorO)
-    maximin = 99999
+    successors = getSuccessors(previousBoard, whichMiniGame, computersTurn)
+    maximin = -99999
     bestMove = -1
     for successor in successors :
         (board, moveIndex) = successor
         #printWholeBoard(board)
-        (heuristic, newMoveIndex) = simulateMove(board, moveIndex, XorO, (not computersTurn), (depth-1), beta, alpha)
+        (heuristic, newMoveIndex) = simulateMove(board, moveIndex, (not computersTurn), overallBoardWinners, (depth-1), beta, alpha)
 ##        if (heuristic > alpha):
 ##            alpha = heuristic
 ##        if (heuristic < beta):
 ##            beta = heuristic
 ##        if (beta > alpha): #prune
 ##            return
-        if (heuristic < maximin):
+        if (heuristic > maximin):
             maximin = heuristic
             bestMove = moveIndex
     return (maximin, bestMove)
@@ -163,16 +216,15 @@ def initNewEmptyMiniBoard():
         
 def playGames():
     maxDepth = 5 #depth limited search
-    humansChar = 'X'
-    computersChar = 'O'
-    #emptyMiniBoard = (' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ')
-    #emptyMiniBoard = initNewEmptyMiniBoard
-    #board = [emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard, emptyMiniBoard]
     board = [initNewEmptyMiniBoard() for i in range(0, 9)]
+    overallBoardWinners = initNewEmptyMiniBoard()
 
     nextMiniBoard = 0
-    while (getWinner(board) == ' '):
+    while (miniBoardWinner(overallBoardWinners) == ' '):
         #humans turn
+        print("Overall board winners:")
+        printMiniBoard(overallBoardWinners)
+        print("")
         printWholeBoard(board)
         print("")
         print("You are playing on board", nextMiniBoard)
@@ -186,27 +238,37 @@ def playGames():
                 invalidMove = False
             else:
                 print("Enter a number 0 to 8, which hasn't already been taken.")
-        board[nextMiniBoard][humansMove] = humansChar
+        board[nextMiniBoard][humansMove] = 'X'
+        if(overallBoardWinners[nextMiniBoard] == ' '):
+            overallBoardWinners[nextMiniBoard] = miniBoardWinner(board[nextMiniBoard])
+            if(miniBoardWinner(overallBoardWinners) != ' '):
+                print("The winner is", miniBoardWinner(overallBoardWinners), "!!!")
+                return miniBoardWinner(overallBoardWinners) #someone won the game
         nextMiniBoard = nextMiniBoardToPlayOn(board, humansMove)
         if (nextMiniBoard == -1):
             return #draw
 
         #computers turn
-        (heuristic, computersMove) = simulateMove(board, nextMiniBoard, computersChar, True, maxDepth, -99999, 99999)
+        (heuristic, computersMove) = simulateMove(board, nextMiniBoard, True, overallBoardWinners, maxDepth, -99999, 99999)
         #do error checking
         if( computersMove >= 0 and computersMove <=8 and board[nextMiniBoard][computersMove] == ' '):
             print("Computer chose", computersMove)
             print("")
         else:
-            print("ERROR! Computer tried to make an illegal move")
+            print("ERROR! Computer tried to make an illegal move to square", computersMove, "in board", nextMiniBoard)
             assert(0)
-        board[nextMiniBoard][computersMove] = computersChar
+        board[nextMiniBoard][computersMove] = 'O'
+        if(overallBoardWinners[nextMiniBoard] == ' '):
+            overallBoardWinners[nextMiniBoard] = miniBoardWinner(board[nextMiniBoard])
+            if(miniBoardWinner(overallBoardWinners) != ' '):
+                print("The winner is", miniBoardWinner(overallBoardWinners), "!!!")
+                return miniBoardWinner(overallBoardWinners) #someone won the game
         nextMiniBoard = nextMiniBoardToPlayOn(board, computersMove)
         if (nextMiniBoard == -1):
             return #draw
 
     printWholeBoard(board)
-    print("The winner is", getWinner(board), "!!!")
+    print("The winner is", miniBoardWinner(overallBoardWinners), "!!!")
 
 playGames()
 #print("mini board winner ", miniBoardWinner([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']))
@@ -214,3 +276,7 @@ playGames()
 #print("mini board winner ", miniBoardWinner(['X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' ']))
 #print("mini board winner ", miniBoardWinner(['X', ' ', ' ', 'X', ' ', ' ', 'X', ' ', ' ']))
 #print("mini board winner ", miniBoardWinner(['0', 'X', 'X', 'X', 'X', 'X', 'X', 'X', ' ']))
+#getMiniBoardHeuristic([' ', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' '])
+#mb = ['O', ' ', ' ', ' ', ' ', 'O', ' ', 'O', ' ']
+#printMiniBoard(mb)
+#print("mini board heuristic", getMiniBoardHeuristic(mb))
