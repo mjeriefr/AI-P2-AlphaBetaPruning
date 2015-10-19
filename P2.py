@@ -81,6 +81,7 @@ def getMiniBoardHeuristic(miniBoard):
     #TODO
     return heuristic
 
+
 def getHeuristic(board, debuggingOutput):
     winner = getWinner(board)
     if(debuggingOutput):
@@ -103,6 +104,8 @@ def getHeuristic(board, debuggingOutput):
             heuristic -= 100
         else:
             heuristic += getMiniBoardHeuristic(board[i])
+            printMiniBoard(miniBoardWinLose)
+            heuristic += getMiniBoardHeuristic(miniBoardWinLose)
     #keep it simple for now. later we can do fancy things like check the number of forced wins/losses
     return heuristic
 
@@ -190,7 +193,6 @@ def nextComputerMove(board, whichMiniGame, depth):
         bestNextMoves.put((heuristic, firstBoard, firstMove))
         
     return bestNextMoves.get()
-        
 def miniBoardFull(miniBoard):
     for i in range(0, 9):
         if( miniBoard[i] == ' '):
@@ -270,7 +272,8 @@ def playGame():
         #computers turn
         #(minimax, computersMove) = simulateMove(board, nextMiniBoard, computersChar, True, maxDepth, -99999, 99999)
         computersChoice = nextComputerMove(board, nextMiniBoard, 2)
-        (minimaxVal, newBoardAfterComputersMove, computersMove) = computersChoice
+        (minimaxVal, computersMove) = computersChoice
+        print("minimax value is", minimaxVal)
         print("minimax value is", minimaxVal)
         #do error checking
         printMiniBoard(board[nextMiniBoard])
