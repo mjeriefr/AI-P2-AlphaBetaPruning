@@ -115,6 +115,7 @@ def getHeuristic(board, overallBoardWinner):
 ##    if( winner == 'X' ):
 ##        return -99999
 
+    print("overall board winner at getHeuristic deepcopy is", overallBoardWinner)
     newOverallBoardWinners = copy.deepcopy(overallBoardWinner)
         
     heuristic = 0
@@ -164,6 +165,8 @@ def getNextBoardDuringFullOrDrawWithPrint(whichMiniBoard, overallBoardWinners):
 #         number index of mini board
 #         character 'X' or 'O' representing whos turn it is in the round
 def getSuccessors(board, whichMiniBoard, computersTurn, overallBoardWinners):
+    print("mini board incoming to getSuccessors", overallBoardWinners)
+    printMiniBoard(overallBoardWinners)
     #If the board is already full or won, go to another board
     if(overallBoardWinners[whichMiniBoard] != ' '):
         nextBoard = getNextBoardDuringFullOrDraw(whichMiniBoard, overallBoardWinners)
@@ -179,34 +182,102 @@ def getSuccessors(board, whichMiniBoard, computersTurn, overallBoardWinners):
         if (board[whichMiniBoard][space] == ' '):
             newBoard = copy.deepcopy(board)
             newBoard[whichMiniBoard][space] = playerChar
-            successors.append((newBoard, space)) #space becomes new miniBoard index
+            #has the board winners changed any? Avoid deepcopy if not necessary.
+            newOverallBoardWinners = overallBoardWinners
+            tempBoardWinners = miniBoardWinner(newBoard[whichMiniBoard])
+            if(tempBoardWinners != overallBoardWinners[whichMiniBoard]):
+                newOverallBoardWinners = copy.deepcopy(tempBoardWinners)
+                print("Going from overall", overallBoardWinners, " to ", newOverallBoardWinners)
+            #build up the list of moves
+            print("mini board returning from getSuccessors is", newOverallBoardWinners)
+            printMiniBoard(newOverallBoardWinners)
+            successors.append((newBoard, space, newOverallBoardWinners)) #space becomes new miniBoard index
     return successors
 
 def simulateMove(previousBoard, whichMiniGame, computersTurn, overallBoardWinners, depth, alpha, beta):
+    print("mini board incoming to simulateMove", overallBoardWinners)
+    printMiniBoard(overallBoardWinners)
     #base case. Using depth-limited search. 0 is deepest.
     if (depth <= 0 ):
-        #printWholeBoard(previousBoard)
-        #print("Reached max depth")
-        #print("")
-        return (getHeuristic(previousBoard, overallBoardWinners), -1)
+        print("mini board in simulateMove", overallBoardWinners)
+        return getHeuristic(previousBoard, overallBoardWinners)
 
-    successors = getSuccessors(previousBoard, whichMiniGame, computersTurn, overallBoardWinners)
-    maximin = -99999
-    bestMove = -1
+    if(not computersTurn):
+        #human move
+        lowestHumanMove = 99999
+        successorsHuman = getSuccessors(previousBoard, whichMiniGame, computersTurn, overallBoardWinners)
+        for successorHuman in successorsHuman :
+            (newBoard, humanMove, newOverallBoardWinners) = successorHuman
+            print("mini board not computersTurn in simulateMove", newOverallBoardWinners)
+            printMiniBoard(newOverallBoardWinners)
+            nextLevelVal = simulateMove(newBoard, humanMove, (not computersTurn), newOverallBoardWinners, (depth-1), beta, alpha)
+            lowestHumanMove = min(lowestHumanMove, nextLevelVal)
+        return lowestHumanMove        
+        
+    if( computersTurn ):
+        #computer move
+        highestComputerMove = -99999
+        print("mini board attempting to get successors in simulateMove is", overallBoardWinners)
+        printMiniBoard(overallBoardWinners)
+        successorsComputer  = getSuccessors(previousBoard, whichMiniGame, computersTurn, overallBoardWinners)
+        for successorComputer in successorsComputer :
+            (newBoard, computerMove, newOverallBoardWinners) = successorComputer
+            print("mini board in computerTurn in simulateMove", newOverallBoardWinners)
+            printMiniBoard(newOverallBoardWinners)
+            nextLevelVal = simulateMove(newBoard, computerMove, (not computersTurn), newOverallBoardWinners, (depth-1), beta, alpha)
+            highestComputerMove = max(highestComputerMove, nextLevelVal)
+        return highestComputerMove
+    
+##    #base case. Using depth-limited search. 0 is deepest.
+##    if (depth <= 0 ):
+##        #printWholeBoard(previousBoard)
+##        #print("Reached max depth")
+##        #print("")
+##        return (getHeuristic(previousBoard, overallBoardWinners), -1)
+##
+##    successors = getSuccessors(previousBoard, whichMiniGame, computersTurn, overallBoardWinners)
+##    maximin = -99999
+##    bestMove = -1
+##    for successor in successors :
+##        (board, moveIndex) = successor
+##        #printWholeBoard(board)
+##        (heuristic, newMoveIndex) = simulateMove(board, moveIndex, (not computersTurn), overallBoardWinners, (depth-1), beta, alpha)
+####        if (heuristic > alpha):
+####            alpha = heuristic
+####        if (heuristic < beta):
+####            beta = heuristic
+####        if (beta > alpha): #prune
+####            return
+##        if (heuristic > maximin):
+##            maximin = heuristic
+##            bestMove = moveIndex
+##    return (maximin, bestMove)
+
+
+def nextComputerMove(board, whichMiniGame, depth):
+    nextMoves = queue.Queue()
+    successors = getSuccessors(board, whichMiniGame, computersChar)
     for successor in successors :
-        (board, moveIndex) = successor
-        #printWholeBoard(board)
-        (heuristic, newMoveIndex) = simulateMove(board, moveIndex, (not computersTurn), overallBoardWinners, (depth-1), beta, alpha)
-##        if (heuristic > alpha):
-##            alpha = heuristic
-##        if (heuristic < beta):
-##            beta = heuristic
-##        if (beta > alpha): #prune
-##            return
-        if (heuristic > maximin):
-            maximin = heuristic
-            bestMove = moveIndex
-    return (maximin, bestMove)
+        (newBoard, move, newOverallBoardWinners) = successor
+        minimax = simulateRound(newBoard, move, (depth-1), False)
+        nextMoves.put((minimax, copy.deepcopy(newBoard), copy.deepcopy(move)))
+        print("Added move", move, "with minimax", minimax)
+    #print("next moves are:", nextMoves.queue)
+
+    #if weights are equal, run the heuristic again
+    bestNextMoves = queue.Queue()
+    while(True):
+        (firstWeight, firstBoard, firstMove) = nextMoves.get()
+        (secondWeight, secondBoard, secondMove) = nextMoves.get() #second on the list, first after pop
+        nextMoves.put((secondWeight, secondBoard, secondMove)) #reattach it, we want it again
+        print("secondWeight is", secondWeight, "secondMove is", secondMove)
+        if(firstWeight < secondWeight or secondMove == None or nextMoves.qsize() <= 1): #done, they differ. pick the better one
+            bestNextMoves.put(firstWeight, firstBoard, firstMove)
+            break
+        heuristic = getHeuristic(firstBoard, overallBoardWinners)
+        bestNextMoves.put((heuristic, firstBoard, firstMove))
+        
+    return bestNextMoves.get()
 
 ##def miniBoardFull(miniBoard):
 ##    for i in range(0, 9):
@@ -279,6 +350,7 @@ def playGames():
             return #draw
 
         #computers turn
+        print("mini board before starting simulation:", overallBoardWinners)
         (heuristic, computersMove) = simulateMove(board, nextMiniBoard, True, overallBoardWinners, maxDepth, -99999, 99999)
         #do error checking
         if( computersMove >= 0 and computersMove <=8 and board[nextMiniBoard][computersMove] == ' '):
